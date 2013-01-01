@@ -5,15 +5,20 @@
 #include <ncurses.h>
 #include <algorithm>
 #include <string>
+#include <sstream>
 #include <fstream>
 #include <time.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
-#define VERSION "0.0.3"
-#define DATE "03.07.2015"
+#define VERSION "0.0.3+"
+#define DATE "08.07.2015"
 #define DELAY_MS 1000
 #define NAME "emoxu3"
 #define LONGNAME "Energy Monitoring for Odroid XU3" 
 
+int _executable = 0;
+string _executableCommand = "";
 int _guicycles = 1;
 int _guicyclescount = 0;
 int _loopms = 1000;
@@ -52,6 +57,7 @@ void printHelp() {
   std::cout << "  --gui-cycles, -g <n>          " << "Interval cycles needed to refresh the GUI" << std::endl;
   std::cout << "  --log,        -l <file>       " << "Log information to a file" << std::endl;
   std::cout << "  --separator,  -s <\"simbols\">  " << "Simbols that separate parameters in the log" << std::endl; 
+  std::cout << "  --executable, -e <\"app\">      " << "Execute app with its parameters" << std::endl;
   std::cout << "  --help,       -h              " << "Show this help" << std::endl;
 }
 
@@ -258,6 +264,17 @@ void parseArguments(int argc, const char* argv[]) {
   if (_separator2) {
     _separator = _separator2;
   }
+
+  const char *_executable1 = getCmdOption(argv, argv + argc, "-e");
+  if (_executable1) {
+    _executable = 1;
+    _executableCommand = _executable1;
+  }
+  const char *_executable2 = getCmdOption(argv, argv + argc, "--executable");
+  if (_executable2) {
+    _executable = 1;
+    _executableCommand = _executable2;
+  }
 }
 
 void clearAll() {
@@ -271,6 +288,8 @@ int main(int argc, const char* argv[]) {
   int ch;
   int loop;
   GetNode *getNode = new GetNode();
+  pid_t pid = -1;
+  int status;
 
   parseArguments(argc, argv);
 
@@ -286,9 +305,65 @@ int main(int argc, const char* argv[]) {
   loop = 1;
 
   getData(getNode);
-  sleep(1);
+  usleep(100 * 1000);
+
+
+  if(_executable) {
+    pid = fork();
+    if(pid == -1) {
+      std::cerr << "Starting executable failed" << std::endl;
+      exit(-1);
+    }
+    else if (pid == 0) {
+      /* Child code */
+      std::stringstream command(_executableCommand);
+      std::string segment;
+      std::vector<std::string> argList;
+
+      while(std::getline(command, segment, ' ')){
+	argList.push_back(segment);
+      }
+      if(argList.empty()) {
+	std::cerr << "Wrong executable command" << std::endl;
+	exit(-1);
+      }
+
+      const char **_args = (const char **) malloc(sizeof(char*) * (argList.size()+1));
+      const char *_exec  = argList.front().c_str();
+
+      int j = 0;
+      for(std::vector<std::string>::size_type i = 0; i != argList.size(); i++) {
+	_args[j] = argList[i].c_str();
+	j++;
+      }
+      _args[j] = NULL;
+
+      if(execvp(_exec, (char* const*) _args)) {
+	std::cerr << "Error executing the command" << std::endl;
+	exit(-1); 
+      }
+    }
+  }
 
   do {
+
+    if(_executable) {
+      int finished = waitpid(pid, &status, WNOHANG);
+      if(finished) {
+	if(WIFEXITED(status)) {
+	  loop = 0;
+	}
+
+	if(WIFSIGNALED(status)) {
+	  loop = 0;
+	}
+
+	if(WCOREDUMP(status)) {
+	  loop = 0;
+	}
+      }
+    }
+
     if(getData(getNode)) {
       clearAll();
       std::cout << "Problem reading data" << std::endl;
@@ -314,6 +389,7 @@ int main(int argc, const char* argv[]) {
     if(ch == 'q')
       loop = 0;
     usleep(_loopms * DELAY_MS);
+
   }while(loop);
 
   getNode->CloseINA231();
