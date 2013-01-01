@@ -4,15 +4,22 @@
 #include <unistd.h>
 #include <ncurses.h>
 #include <algorithm>
+#include <string>
+#include <fstream>
+#include <time.h>
 
-#define VERSION "0.0.1"
-#define DATE "29.06.2015"
+#define VERSION "0.0.2"
+#define DATE "01.07.2015"
 #define DELAY_MS 1000
 #define NAME "emoxu3"
 #define LONGNAME "Energy Monitoring for Odroid XU3" 
 
 
 int _loopms = 1000;
+std::string _logfile = "";
+std::ofstream _flog;
+uint64_t _oldTime = 0;
+uint64_t _aTime = 0;
 
 
 const char* getCmdOption(const char ** begin, const char ** end, const std::string & option) {
@@ -33,8 +40,9 @@ void printHelp() {
   std::cout << LONGNAME << " v" << VERSION << " - " << DATE << std::endl;
   std::cout << "Usage: emoxu3 [options]" << std::endl;
   std::cout << "Options:" << std::endl;
-  std::cout << "  --interval, -i <time in ms> " << "Set the iteration time"<< std::endl;
-  std::cout << "  --help, -h                  " << "Show this help"<< std::endl;
+  std::cout << "  --interval, -i <time in ms> " << "Set the iteration time" << std::endl;
+  std::cout << "  --log,      -l <file>       " << "Log information to a file" << std::endl;
+  std::cout << "  --help,     -h              " << "Show this help" << std::endl;
 }
 
 void initNCurses() {
@@ -48,7 +56,6 @@ void initNCurses() {
   //init_pair(1, COLOR_GREEN, COLOR_BLACK);
   //init_pair(2, COLOR_RED, COLOR_BLACK);
 }
-
 int getData(GetNode *getNode) {
   int res;
 
@@ -57,8 +64,84 @@ int getData(GetNode *getNode) {
   res += getNode->GetCPUCurFreq(-1);
   res += getNode->GetGPUCurFreq();
   res += getNode->GetCPUTemp(-1);
+  res += getNode->GetGPUTemp();
 
   return res;
+}
+
+void writeDataToLog(GetNode *getNode) {
+  struct timespec spec;
+  uint64_t newTime;
+  uint64_t diffTime = 0;
+
+  clock_gettime(CLOCK_MONOTONIC_RAW, &spec);
+    newTime = round(spec.tv_nsec / 1000000) + (spec.tv_sec * 1000);
+
+  if(_oldTime)
+    diffTime = newTime - _oldTime;
+  _oldTime = newTime;
+
+  _aTime += diffTime;
+  _flog << _aTime;
+
+  /* GPU Frequency */
+  _flog << ", " << getNode->gpuFreq;
+
+  /* CPU Frequency */
+  _flog << ", " << getNode->cpuFreq[0];
+  _flog << ", " << getNode->cpuFreq[1];
+  _flog << ", " << getNode->cpuFreq[2];
+  _flog << ", " << getNode->cpuFreq[3];
+  _flog << ", " << getNode->cpuFreq[4];
+  _flog << ", " << getNode->cpuFreq[5];
+  _flog << ", " << getNode->cpuFreq[6];
+  _flog << ", " << getNode->cpuFreq[7];
+
+  /* CPU Usage */
+  _flog << ", " << getNode->usage[0];
+  _flog << ", " << getNode->usage[1];
+  _flog << ", " << getNode->usage[2];
+  _flog << ", " << getNode->usage[3];
+  _flog << ", " << getNode->usage[4];
+  _flog << ", " << getNode->usage[5];
+  _flog << ", " << getNode->usage[6];
+  _flog << ", " << getNode->usage[7];
+
+  /* Temperatures */
+  _flog << ", " << getNode->gpuTemp;
+  _flog << ", " << getNode->cpuTemp[0];
+  _flog << ", " << getNode->cpuTemp[1];
+  _flog << ", " << getNode->cpuTemp[2];
+  _flog << ", " << getNode->cpuTemp[3];
+
+  /* A15 CPU Block */
+  _flog << ", " << getNode->armuV;
+  _flog << ", " << getNode->armuA;
+  _flog << ", " << getNode->armuW;
+
+  /* A7 CPU Block */
+  _flog << ", " << getNode->kfcuV;
+  _flog << ", " << getNode->kfcuA;
+  _flog << ", " << getNode->kfcuW;
+
+  /* GPU Block */
+  _flog << ", " << getNode->g3duV;
+  _flog << ", " << getNode->g3duA;
+  _flog << ", " << getNode->g3duW;
+
+  /* Memory Block */
+  _flog << ", " << getNode->memuV;
+  _flog << ", " << getNode->memuA;
+  _flog << ", " << getNode->memuW;
+
+  _flog << std::endl;
+
+}
+
+void printNLoading() {
+  clear();
+  printw("Loading...");
+  refresh();
 }
 
 void updateDataScreen(GetNode *getNode) {
@@ -98,6 +181,29 @@ void parseArguments(int argc, const char* argv[]) {
   if (_loopms2) {
     _loopms = atoi(_loopms2);
   }
+
+  const char *_logfile1 = getCmdOption(argv, argv + argc, "-l");
+  if (_logfile1) {
+    _logfile = _logfile1;
+  }
+  const char *_logfile2 = getCmdOption(argv, argv + argc, "--log");
+  if (_logfile2) {
+    _logfile = _logfile2;
+  }
+
+  if(!_logfile.empty()) {
+    _flog.open(_logfile);
+    if(!_flog) {
+      std::cerr << "Failed to open log file: " << _logfile << std::endl;
+    }
+  }
+}
+
+void clearAll() {
+  if(_flog.is_open())
+    _flog.close();
+
+  endwin();
 }
 
 int main(int argc, const char* argv[]) {
@@ -108,22 +214,28 @@ int main(int argc, const char* argv[]) {
   parseArguments(argc, argv);
 
   initNCurses();
+  printNLoading();
 
   if (getNode->OpenINA231()) {
+    clearAll();
     cout << "Error opening sensor" << endl;
-    endwin();
     exit(-1);
-  } else {
-    // open log file
   }
 
   loop = 1;
+
+  getData(getNode);
+  sleep(1);
+
   do {
     if(getData(getNode)) {
-      endwin();
+      clearAll();
+      std::cout << "Problem reading data" << std::endl;
       exit(-1);
     }
-
+    if(_flog) {
+      writeDataToLog(getNode);
+    }
     updateDataScreen(getNode);
     ch = getch();
     if(ch == 'q')
@@ -133,7 +245,7 @@ int main(int argc, const char* argv[]) {
 
   getNode->CloseINA231();
   delete getNode;
-  endwin();
+  clearAll();
 
   return 0;
 }
