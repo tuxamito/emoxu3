@@ -11,11 +11,11 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#define VERSION "0.0.4"
-#define DATE "08.07.2015"
+#define VERSION "0.0.5"
+#define DATE "09.07.2015"
 #define DELAY_MS 1000
 #define NAME "emoxu3"
-#define LONGNAME "Energy Monitoring for Odroid XU3" 
+#define LONGNAME "Energy Monitoring for Odroid-XU3" 
 
 int _executable = 0;
 string _executableCommand = "";
@@ -24,6 +24,7 @@ int _guicycles = 1;
 int _guicyclescount = 0;
 int _loopms = 1000;
 int _measureEnergy = 1;
+int _report = 0;
 std::string _logfile = "";
 std::ofstream _flog;
 uint64_t _oldTime = 0;
@@ -60,6 +61,7 @@ void printHelp() {
   std::cout << "  --log,        -l <file>       " << "Log information to a file" << std::endl;
   std::cout << "  --separator,  -s \"simbols\"    " << "Simbols that separate parameters in the log" << std::endl; 
   std::cout << "  --executable, -e \"app [args]\" " << "Execute app with its parameters" << std::endl;
+  std::cout << "  --report,     -r              " << "Show an energy report after execution" << std::endl;
   std::cout << "  --help,       -h              " << "Show this help" << std::endl;
 }
 
@@ -228,6 +230,10 @@ void parseArguments(int argc, const char* argv[]) {
     _gui = 0;
   }
 
+  if(cmdOptionExists(argv, argv+argc, "-r") || cmdOptionExists(argv, argv+argc, "--report")) {
+    _report = 1;
+  }
+
   const char *_loopms1 = getCmdOption(argv, argv + argc, "-i");
   if (_loopms1) {
     _loopms = atoi(_loopms1);
@@ -280,6 +286,21 @@ void parseArguments(int argc, const char* argv[]) {
   if (_executable2) {
     _executable = 1;
     _executableCommand = _executable2;
+  }
+}
+
+void showReport() {
+  std::cout << "Execution Time: " << _aTime << " ms" << std::endl;
+
+  if(_measureEnergy) {
+    std::cout << "Energy Total:   " << _wattST   << " Ws - AP: " << _wattST   / (_aTime/1000.0) << " W" << std::endl;
+    std::cout << "Energy CPU A15: " << _wattSA15 << " Ws - AP: " << _wattSA15 / (_aTime/1000.0) << " W" << std::endl;
+    std::cout << "Energy CPU A7:  " << _wattSA7  << " Ws - AP: " << _wattSA7  / (_aTime/1000.0) << " W" << std::endl;
+    std::cout << "Energy GPU:     " << _wattSGPU << " Ws - AP: " << _wattSGPU / (_aTime/1000.0) << " W" << std::endl;
+    std::cout << "Energy Memory:  " << _wattSMem << " Ws - AP: " << _wattSMem / (_aTime/1000.0) << " W" << std::endl;
+  }
+  else {
+    std::cout << "No Energy Measurement available" << std::endl;
   }
 }
 
@@ -404,6 +425,10 @@ int main(int argc, const char* argv[]) {
     usleep(_loopms * DELAY_MS);
 
   }while(loop);
+
+  if(_report) {
+    showReport();
+  }
 
   getNode->CloseINA231();
   delete getNode;
