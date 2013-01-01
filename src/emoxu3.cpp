@@ -11,8 +11,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#define VERSION "0.0.5"
-#define DATE "09.07.2015"
+#define VERSION "0.0.6"
+#define DATE "10.07.2015"
 #define DELAY_MS 1000
 #define NAME "emoxu3"
 #define LONGNAME "Energy Monitoring for Odroid-XU3" 
@@ -25,6 +25,7 @@ int _guicyclescount = 0;
 int _loopms = 1000;
 int _measureEnergy = 1;
 int _report = 0;
+int _reportRaw = 0;
 std::string _logfile = "";
 std::ofstream _flog;
 uint64_t _oldTime = 0;
@@ -62,6 +63,7 @@ void printHelp() {
   std::cout << "  --separator,  -s \"simbols\"    " << "Simbols that separate parameters in the log" << std::endl; 
   std::cout << "  --executable, -e \"app [args]\" " << "Execute app with its parameters" << std::endl;
   std::cout << "  --report,     -r              " << "Show an energy report after execution" << std::endl;
+  std::cout << "  --report-raw, -R              " << "Show a raw energy report after execution" << std::endl;
   std::cout << "  --help,       -h              " << "Show this help" << std::endl;
 }
 
@@ -232,6 +234,12 @@ void parseArguments(int argc, const char* argv[]) {
 
   if(cmdOptionExists(argv, argv+argc, "-r") || cmdOptionExists(argv, argv+argc, "--report")) {
     _report = 1;
+    _reportRaw = 0;
+  }
+
+  if(cmdOptionExists(argv, argv+argc, "-R") || cmdOptionExists(argv, argv+argc, "--report-raw")) {
+    _report = 1;
+    _reportRaw = 1;
   }
 
   const char *_loopms1 = getCmdOption(argv, argv + argc, "-i");
@@ -290,17 +298,31 @@ void parseArguments(int argc, const char* argv[]) {
 }
 
 void showReport() {
-  std::cout << "Execution Time: " << _aTime << " ms" << std::endl;
+  if(_reportRaw) {
+    std::cout << _aTime << " ";
 
-  if(_measureEnergy) {
-    std::cout << "Energy Total:   " << _wattST   << " Ws - AP: " << _wattST   / (_aTime/1000.0) << " W" << std::endl;
-    std::cout << "Energy CPU A15: " << _wattSA15 << " Ws - AP: " << _wattSA15 / (_aTime/1000.0) << " W" << std::endl;
-    std::cout << "Energy CPU A7:  " << _wattSA7  << " Ws - AP: " << _wattSA7  / (_aTime/1000.0) << " W" << std::endl;
-    std::cout << "Energy GPU:     " << _wattSGPU << " Ws - AP: " << _wattSGPU / (_aTime/1000.0) << " W" << std::endl;
-    std::cout << "Energy Memory:  " << _wattSMem << " Ws - AP: " << _wattSMem / (_aTime/1000.0) << " W" << std::endl;
+    if(_measureEnergy) {
+      std::cout << _wattST   << " " << _wattST   / (_aTime/1000.0) << " ";
+      std::cout << _wattSA15 << " " << _wattSA15 / (_aTime/1000.0) << " ";
+      std::cout << _wattSA7  << " " << _wattSA7  / (_aTime/1000.0) << " ";
+      std::cout << _wattSGPU << " " << _wattSGPU / (_aTime/1000.0) << " ";
+      std::cout << _wattSMem << " " << _wattSMem / (_aTime/1000.0) << " ";
+    }
+    std::cout << std::endl;
   }
   else {
-    std::cout << "No Energy Measurement available" << std::endl;
+    std::cout << "Execution Time: " << _aTime << " ms" << std::endl;
+
+    if(_measureEnergy) {
+      std::cout << "Energy Total:   " << _wattST   << " Ws - AP: " << _wattST   / (_aTime/1000.0) << " W" << std::endl;
+      std::cout << "Energy CPU A15: " << _wattSA15 << " Ws - AP: " << _wattSA15 / (_aTime/1000.0) << " W" << std::endl;
+      std::cout << "Energy CPU A7:  " << _wattSA7  << " Ws - AP: " << _wattSA7  / (_aTime/1000.0) << " W" << std::endl;
+      std::cout << "Energy GPU:     " << _wattSGPU << " Ws - AP: " << _wattSGPU / (_aTime/1000.0) << " W" << std::endl;
+      std::cout << "Energy Memory:  " << _wattSMem << " Ws - AP: " << _wattSMem / (_aTime/1000.0) << " W" << std::endl;
+    }
+    else {
+      std::cout << "No Energy Measurement available" << std::endl;
+    }
   }
 }
 
