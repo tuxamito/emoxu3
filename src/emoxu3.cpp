@@ -8,19 +8,27 @@
 #include <fstream>
 #include <time.h>
 
-#define VERSION "0.0.2"
-#define DATE "01.07.2015"
+#define VERSION "0.0.3"
+#define DATE "03.07.2015"
 #define DELAY_MS 1000
 #define NAME "emoxu3"
 #define LONGNAME "Energy Monitoring for Odroid XU3" 
 
-
+int _guicycles = 1;
+int _guicyclescount = 0;
 int _loopms = 1000;
+int _measureEnergy = 1;
 std::string _logfile = "";
 std::ofstream _flog;
 uint64_t _oldTime = 0;
 uint64_t _aTime = 0;
-
+uint64_t _diffTime = 0;
+std::string _separator = " ";
+double _wattST   = 0.0;
+double _wattSA15 = 0.0;
+double _wattSA7  = 0.0;
+double _wattSGPU = 0.0;
+double _wattSMem = 0.0;
 
 const char* getCmdOption(const char ** begin, const char ** end, const std::string & option) {
   auto itr = std::find(begin, end, option);
@@ -40,9 +48,11 @@ void printHelp() {
   std::cout << LONGNAME << " v" << VERSION << " - " << DATE << std::endl;
   std::cout << "Usage: emoxu3 [options]" << std::endl;
   std::cout << "Options:" << std::endl;
-  std::cout << "  --interval, -i <time in ms> " << "Set the iteration time" << std::endl;
-  std::cout << "  --log,      -l <file>       " << "Log information to a file" << std::endl;
-  std::cout << "  --help,     -h              " << "Show this help" << std::endl;
+  std::cout << "  --interval,   -i <time in ms> " << "Set the iteration time" << std::endl;
+  std::cout << "  --gui-cycles, -g <n>          " << "Interval cycles needed to refresh the GUI" << std::endl;
+  std::cout << "  --log,        -l <file>       " << "Log information to a file" << std::endl;
+  std::cout << "  --separator,  -s <\"simbols\">  " << "Simbols that separate parameters in the log" << std::endl; 
+  std::cout << "  --help,       -h              " << "Show this help" << std::endl;
 }
 
 void initNCurses() {
@@ -69,70 +79,92 @@ int getData(GetNode *getNode) {
   return res;
 }
 
-void writeDataToLog(GetNode *getNode) {
+void calculateEnergy(GetNode *getNode) {
+  double dt = ((double)_diffTime / 1000.0);
+  _wattSMem += (getNode->memuW) * dt;
+  _wattSGPU += (getNode->g3duW) * dt;
+  _wattSA7  += (getNode->kfcuW) * dt;
+  _wattSA15 += (getNode->armuW) * dt;
+
+  _wattST = _wattSMem + _wattSGPU + _wattSA7 + _wattSA15;
+}
+
+void calculateTime() {
   struct timespec spec;
-  uint64_t newTime;
-  uint64_t diffTime = 0;
+  uint64_t newTime = 0;
 
   clock_gettime(CLOCK_MONOTONIC_RAW, &spec);
-    newTime = round(spec.tv_nsec / 1000000) + (spec.tv_sec * 1000);
+  newTime = round(spec.tv_nsec / 1000000) + (spec.tv_sec * 1000);
 
   if(_oldTime)
-    diffTime = newTime - _oldTime;
+    _diffTime = newTime - _oldTime;
   _oldTime = newTime;
 
-  _aTime += diffTime;
+  _aTime += _diffTime;
+}
+
+void writeDataToLog(GetNode *getNode) {
+  /* Time in ms since starting execution */
   _flog << _aTime;
 
   /* GPU Frequency */
-  _flog << ", " << getNode->gpuFreq;
+  _flog << _separator << getNode->gpuFreq;
 
   /* CPU Frequency */
-  _flog << ", " << getNode->cpuFreq[0];
-  _flog << ", " << getNode->cpuFreq[1];
-  _flog << ", " << getNode->cpuFreq[2];
-  _flog << ", " << getNode->cpuFreq[3];
-  _flog << ", " << getNode->cpuFreq[4];
-  _flog << ", " << getNode->cpuFreq[5];
-  _flog << ", " << getNode->cpuFreq[6];
-  _flog << ", " << getNode->cpuFreq[7];
+  _flog << _separator << getNode->cpuFreq[0];
+  _flog << _separator << getNode->cpuFreq[1];
+  _flog << _separator << getNode->cpuFreq[2];
+  _flog << _separator << getNode->cpuFreq[3];
+  _flog << _separator << getNode->cpuFreq[4];
+  _flog << _separator << getNode->cpuFreq[5];
+  _flog << _separator << getNode->cpuFreq[6];
+  _flog << _separator << getNode->cpuFreq[7];
 
   /* CPU Usage */
-  _flog << ", " << getNode->usage[0];
-  _flog << ", " << getNode->usage[1];
-  _flog << ", " << getNode->usage[2];
-  _flog << ", " << getNode->usage[3];
-  _flog << ", " << getNode->usage[4];
-  _flog << ", " << getNode->usage[5];
-  _flog << ", " << getNode->usage[6];
-  _flog << ", " << getNode->usage[7];
+  _flog << _separator << getNode->usage[0];
+  _flog << _separator << getNode->usage[1];
+  _flog << _separator << getNode->usage[2];
+  _flog << _separator << getNode->usage[3];
+  _flog << _separator << getNode->usage[4];
+  _flog << _separator << getNode->usage[5];
+  _flog << _separator << getNode->usage[6];
+  _flog << _separator << getNode->usage[7];
 
   /* Temperatures */
-  _flog << ", " << getNode->gpuTemp;
-  _flog << ", " << getNode->cpuTemp[0];
-  _flog << ", " << getNode->cpuTemp[1];
-  _flog << ", " << getNode->cpuTemp[2];
-  _flog << ", " << getNode->cpuTemp[3];
+  _flog << _separator << getNode->gpuTemp;
+  _flog << _separator << getNode->cpuTemp[0];
+  _flog << _separator << getNode->cpuTemp[1];
+  _flog << _separator << getNode->cpuTemp[2];
+  _flog << _separator << getNode->cpuTemp[3];
 
   /* A15 CPU Block */
-  _flog << ", " << getNode->armuV;
-  _flog << ", " << getNode->armuA;
-  _flog << ", " << getNode->armuW;
+  _flog << _separator << getNode->armuV;
+  _flog << _separator << getNode->armuA;
+  _flog << _separator << getNode->armuW;
 
   /* A7 CPU Block */
-  _flog << ", " << getNode->kfcuV;
-  _flog << ", " << getNode->kfcuA;
-  _flog << ", " << getNode->kfcuW;
+  _flog << _separator << getNode->kfcuV;
+  _flog << _separator << getNode->kfcuA;
+  _flog << _separator << getNode->kfcuW;
 
   /* GPU Block */
-  _flog << ", " << getNode->g3duV;
-  _flog << ", " << getNode->g3duA;
-  _flog << ", " << getNode->g3duW;
+  _flog << _separator << getNode->g3duV;
+  _flog << _separator << getNode->g3duA;
+  _flog << _separator << getNode->g3duW;
 
   /* Memory Block */
-  _flog << ", " << getNode->memuV;
-  _flog << ", " << getNode->memuA;
-  _flog << ", " << getNode->memuW;
+  _flog << _separator << getNode->memuV;
+  _flog << _separator << getNode->memuA;
+  _flog << _separator << getNode->memuW;
+
+  /* Log Energy if Enabled */
+  if(_measureEnergy) {
+    _flog << _separator << _wattSA15;
+    _flog << _separator << _wattSA7;
+    _flog << _separator << _wattSGPU;
+    _flog << _separator << _wattSMem;
+    _flog << _separator << _wattST;
+  }
 
   _flog << std::endl;
 
@@ -160,10 +192,21 @@ void updateDataScreen(GetNode *getNode) {
   addch(ACS_DEGREE); printw("C\n");
   printw("CPU7: %dMHz, %d\%% %d", getNode->cpuFreq[7], getNode->usage[7], getNode->cpuTemp[3]);
   addch(ACS_DEGREE); printw("C\n");
-  printw("A15 POWER: %.3fV, %.3fA, %.3fW\n", getNode->armuV, getNode->armuA, getNode->armuW);
-  printw("A7  POWER: %.3fV, %.3fA, %.3fW\n", getNode->kfcuV, getNode->kfcuA, getNode->kfcuW);
-  printw("GPU POWER: %.3fV, %.3fA, %.3fW\n", getNode->g3duV, getNode->g3duA, getNode->g3duW);
-  printw("Mem POWER: %.3fV, %.3fA, %.3fW\n", getNode->memuV, getNode->memuA, getNode->memuW);
+
+  if(_measureEnergy) {
+    printw("A15 POWER: %.3fV, %.3fA, %.3fW - %.4fWs\n", getNode->armuV, getNode->armuA, getNode->armuW, _wattSA15);
+    printw("A7  POWER: %.3fV, %.3fA, %.3fW - %.4fWs\n", getNode->kfcuV, getNode->kfcuA, getNode->kfcuW, _wattSA7);
+    printw("GPU POWER: %.3fV, %.3fA, %.3fW - %.4fWs\n", getNode->g3duV, getNode->g3duA, getNode->g3duW, _wattSGPU);
+    printw("Mem POWER: %.3fV, %.3fA, %.3fW - %.4fWs\n", getNode->memuV, getNode->memuA, getNode->memuW, _wattSMem);
+    printw("Total Energy: %.4f Ws - %4f Wh\n", _wattST, _wattST/3600.0);
+  }
+  else {
+    printw("A15 POWER: %.3fV, %.3fA, %.3fW\n", getNode->armuV, getNode->armuA, getNode->armuW);
+    printw("A7  POWER: %.3fV, %.3fA, %.3fW\n", getNode->kfcuV, getNode->kfcuA, getNode->kfcuW);
+    printw("GPU POWER: %.3fV, %.3fA, %.3fW\n", getNode->g3duV, getNode->g3duA, getNode->g3duW);
+    printw("Mem POWER: %.3fV, %.3fA, %.3fW\n", getNode->memuV, getNode->memuA, getNode->memuW);
+  }
+
   refresh();
 }
 
@@ -196,6 +239,24 @@ void parseArguments(int argc, const char* argv[]) {
     if(!_flog) {
       std::cerr << "Failed to open log file: " << _logfile << std::endl;
     }
+  }
+
+  const char *_guicycles1 = getCmdOption(argv, argv + argc, "-g");
+  if (_guicycles1) {
+    _guicycles = atoi(_guicycles1);
+  }
+  const char *_guicycles2 = getCmdOption(argv, argv + argc, "--gui-cycles");
+  if (_guicycles2) {
+    _guicycles = atoi(_guicycles2);
+  }
+
+  const char *_separator1 = getCmdOption(argv, argv + argc, "-s");
+  if (_separator1) {
+    _separator = _separator1;
+  }
+  const char *_separator2 = getCmdOption(argv, argv + argc, "--separator");
+  if (_separator2) {
+    _separator = _separator2;
   }
 }
 
@@ -233,10 +294,22 @@ int main(int argc, const char* argv[]) {
       std::cout << "Problem reading data" << std::endl;
       exit(-1);
     }
+    calculateTime();
+
+    if(_measureEnergy) {
+      calculateEnergy(getNode);
+    }
     if(_flog) {
       writeDataToLog(getNode);
     }
-    updateDataScreen(getNode);
+
+    if(_guicycles){
+      if(++_guicyclescount == _guicycles) {
+	updateDataScreen(getNode);
+	_guicyclescount = 0;
+      }
+    }
+
     ch = getch();
     if(ch == 'q')
       loop = 0;
