@@ -11,8 +11,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#define VERSION "0.0.6"
-#define DATE "10.07.2015"
+#define VERSION "0.0.7"
+#define DATE "13.11.2015"
 #define DELAY_MS 1000
 #define NAME "emoxu3"
 #define LONGNAME "Energy Monitoring for Odroid-XU3" 
@@ -206,11 +206,11 @@ void updateDataScreen(GetNode *getNode) {
   addch(ACS_DEGREE); printw("C\n");
 
   if(_measureEnergy) {
-    printw("A15 POWER: %.3fV, %.3fA, %.3fW - %.4fWs\n", getNode->armuV, getNode->armuA, getNode->armuW, _wattSA15);
-    printw("A7  POWER: %.3fV, %.3fA, %.3fW - %.4fWs\n", getNode->kfcuV, getNode->kfcuA, getNode->kfcuW, _wattSA7);
-    printw("GPU POWER: %.3fV, %.3fA, %.3fW - %.4fWs\n", getNode->g3duV, getNode->g3duA, getNode->g3duW, _wattSGPU);
-    printw("Mem POWER: %.3fV, %.3fA, %.3fW - %.4fWs\n", getNode->memuV, getNode->memuA, getNode->memuW, _wattSMem);
-    printw("Total Energy: %.4f Ws - %4f Wh\n", _wattST, _wattST/3600.0);
+    printw("A15 POWER: %.3fV, %.3fA, %.3fW - %.4fJ\n", getNode->armuV, getNode->armuA, getNode->armuW, _wattSA15);
+    printw("A7  POWER: %.3fV, %.3fA, %.3fW - %.4fJ\n", getNode->kfcuV, getNode->kfcuA, getNode->kfcuW, _wattSA7);
+    printw("GPU POWER: %.3fV, %.3fA, %.3fW - %.4fJ\n", getNode->g3duV, getNode->g3duA, getNode->g3duW, _wattSGPU);
+    printw("Mem POWER: %.3fV, %.3fA, %.3fW - %.4fJ\n", getNode->memuV, getNode->memuA, getNode->memuW, _wattSMem);
+    printw("Total Energy: %.4f J - %4f Wh\n", _wattST, _wattST/3600.0);
   }
   else {
     printw("A15 POWER: %.3fV, %.3fA, %.3fW\n", getNode->armuV, getNode->armuA, getNode->armuW);
@@ -314,11 +314,11 @@ void showReport() {
     std::cout << "Execution Time: " << _aTime << " ms" << std::endl;
 
     if(_measureEnergy) {
-      std::cout << "Energy Total:   " << _wattST   << " Ws - AP: " << _wattST   / (_aTime/1000.0) << " W" << std::endl;
-      std::cout << "Energy CPU A15: " << _wattSA15 << " Ws - AP: " << _wattSA15 / (_aTime/1000.0) << " W" << std::endl;
-      std::cout << "Energy CPU A7:  " << _wattSA7  << " Ws - AP: " << _wattSA7  / (_aTime/1000.0) << " W" << std::endl;
-      std::cout << "Energy GPU:     " << _wattSGPU << " Ws - AP: " << _wattSGPU / (_aTime/1000.0) << " W" << std::endl;
-      std::cout << "Energy Memory:  " << _wattSMem << " Ws - AP: " << _wattSMem / (_aTime/1000.0) << " W" << std::endl;
+      std::cout << "Energy Total:   " << _wattST   << " J - AP: " << _wattST   / (_aTime/1000.0) << " W" << std::endl;
+      std::cout << "Energy CPU A15: " << _wattSA15 << " J - AP: " << _wattSA15 / (_aTime/1000.0) << " W" << std::endl;
+      std::cout << "Energy CPU A7:  " << _wattSA7  << " J - AP: " << _wattSA7  / (_aTime/1000.0) << " W" << std::endl;
+      std::cout << "Energy GPU:     " << _wattSGPU << " J - AP: " << _wattSGPU / (_aTime/1000.0) << " W" << std::endl;
+      std::cout << "Energy Memory:  " << _wattSMem << " J - AP: " << _wattSMem / (_aTime/1000.0) << " W" << std::endl;
     }
     else {
       std::cout << "No Energy Measurement available" << std::endl;
