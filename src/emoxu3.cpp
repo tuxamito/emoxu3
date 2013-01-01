@@ -11,7 +11,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#define VERSION "0.0.3+"
+#define VERSION "0.0.4"
 #define DATE "08.07.2015"
 #define DELAY_MS 1000
 #define NAME "emoxu3"
@@ -19,6 +19,7 @@
 
 int _executable = 0;
 string _executableCommand = "";
+int _gui = 1;
 int _guicycles = 1;
 int _guicyclescount = 0;
 int _loopms = 1000;
@@ -55,9 +56,10 @@ void printHelp() {
   std::cout << "Options:" << std::endl;
   std::cout << "  --interval,   -i <time in ms> " << "Set the iteration time" << std::endl;
   std::cout << "  --gui-cycles, -g <n>          " << "Interval cycles needed to refresh the GUI" << std::endl;
+  std::cout << "  --no-gui,     -n              " << "Do not show the interface" << std::endl;
   std::cout << "  --log,        -l <file>       " << "Log information to a file" << std::endl;
-  std::cout << "  --separator,  -s <\"simbols\">  " << "Simbols that separate parameters in the log" << std::endl; 
-  std::cout << "  --executable, -e <\"app\">      " << "Execute app with its parameters" << std::endl;
+  std::cout << "  --separator,  -s \"simbols\"    " << "Simbols that separate parameters in the log" << std::endl; 
+  std::cout << "  --executable, -e \"app [args]\" " << "Execute app with its parameters" << std::endl;
   std::cout << "  --help,       -h              " << "Show this help" << std::endl;
 }
 
@@ -222,6 +224,10 @@ void parseArguments(int argc, const char* argv[]) {
     exit(0);
   }
 
+  if(cmdOptionExists(argv, argv+argc, "-n") || cmdOptionExists(argv, argv+argc, "--no-gui")) {
+    _gui = 0;
+  }
+
   const char *_loopms1 = getCmdOption(argv, argv + argc, "-i");
   if (_loopms1) {
     _loopms = atoi(_loopms1);
@@ -281,7 +287,9 @@ void clearAll() {
   if(_flog.is_open())
     _flog.close();
 
-  endwin();
+  if(_gui) {
+    endwin();
+  }
 }
 
 int main(int argc, const char* argv[]) {
@@ -293,8 +301,10 @@ int main(int argc, const char* argv[]) {
 
   parseArguments(argc, argv);
 
-  initNCurses();
-  printNLoading();
+  if(_gui) {
+    initNCurses();
+    printNLoading();
+  }
 
   if (getNode->OpenINA231()) {
     clearAll();
@@ -346,7 +356,6 @@ int main(int argc, const char* argv[]) {
   }
 
   do {
-
     if(_executable) {
       int finished = waitpid(pid, &status, WNOHANG);
       if(finished) {
@@ -378,16 +387,20 @@ int main(int argc, const char* argv[]) {
       writeDataToLog(getNode);
     }
 
-    if(_guicycles){
+    if(_guicycles && _gui){
       if(++_guicyclescount == _guicycles) {
 	updateDataScreen(getNode);
 	_guicyclescount = 0;
       }
     }
 
-    ch = getch();
-    if(ch == 'q')
-      loop = 0;
+    if(_gui) {
+      ch = getch();
+      if(ch == 'q') {
+	loop = 0;
+      }
+    }
+
     usleep(_loopms * DELAY_MS);
 
   }while(loop);
