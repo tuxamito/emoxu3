@@ -56,25 +56,26 @@ int getData(GetNode *getNode) {
   res += getNode->GetINA231();
   res += getNode->GetCPUCurFreq(-1);
   res += getNode->GetGPUCurFreq();
+  res += getNode->GetCPUTemp(-1);
 
   return res;
 }
 
 void updateDataScreen(GetNode *getNode) {
   clear();
-  printw("GPU : %dMHz %d", getNode->gpuFreq, getNode->GetCPUTemp(4));
+  printw("GPU : %dMHz %d", getNode->gpuFreq, getNode->gpuTemp);
   addch(ACS_DEGREE); printw("C\n");
   printw("cpu0: %dMHz, %d\%\n", getNode->cpuFreq[0], getNode->usage[0]);
   printw("cpu1: %dMHz, %d\%\n", getNode->cpuFreq[1], getNode->usage[1]);
   printw("cpu2: %dMHz, %d\%\n", getNode->cpuFreq[2], getNode->usage[2]);
   printw("cpu3: %dMHz, %d\%\n", getNode->cpuFreq[3], getNode->usage[3]);
-  printw("CPU4: %dMHz, %d\%% %d", getNode->cpuFreq[4], getNode->usage[4], getNode->GetCPUTemp(0));
+  printw("CPU4: %dMHz, %d\%% %d", getNode->cpuFreq[4], getNode->usage[4], getNode->cpuTemp[0]);
   addch(ACS_DEGREE); printw("C\n");
-  printw("CPU5: %dMHz, %d\%% %d", getNode->cpuFreq[5], getNode->usage[5], getNode->GetCPUTemp(1));
+  printw("CPU5: %dMHz, %d\%% %d", getNode->cpuFreq[5], getNode->usage[5], getNode->cpuTemp[1]);
   addch(ACS_DEGREE); printw("C\n");
-  printw("CPU6: %dMHz, %d\%% %d", getNode->cpuFreq[6], getNode->usage[6], getNode->GetCPUTemp(2));
+  printw("CPU6: %dMHz, %d\%% %d", getNode->cpuFreq[6], getNode->usage[6], getNode->cpuTemp[2]);
   addch(ACS_DEGREE); printw("C\n");
-  printw("CPU7: %dMHz, %d\%% %d", getNode->cpuFreq[7], getNode->usage[7], getNode->GetCPUTemp(3));
+  printw("CPU7: %dMHz, %d\%% %d", getNode->cpuFreq[7], getNode->usage[7], getNode->cpuTemp[3]);
   addch(ACS_DEGREE); printw("C\n");
   printw("A15 POWER: %.3fV, %.3fA, %.3fW\n", getNode->armuV, getNode->armuA, getNode->armuW);
   printw("A7  POWER: %.3fV, %.3fA, %.3fW\n", getNode->kfcuV, getNode->kfcuA, getNode->kfcuW);

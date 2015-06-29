@@ -67,12 +67,12 @@ int GetNode::GetCPUCurFreq(int cpuNum) {
   }
 }
 
-int GetNode::GetCPUTemp(int cpuNum) {
+int GetNode::GetOneCPUTemp(int cpuNum) {
   std::ifstream fp;
   fp.open(TEMP_NODE);
 
   if(fp.fail())
-    return 0;
+    return -1;
 
   char buf[16];
   for (int i=0; i<cpuNum+1; i++)
@@ -84,6 +84,40 @@ int GetNode::GetCPUTemp(int cpuNum) {
   return atoi(&buf[9]);
 }
 
+int GetNode::GetCPUTemp(int cpuNum) {
+  if(cpuNum > 3) {
+    return -1;
+  }
+  else if(cpuNum <0) {
+    for(int i=0; i<4; i++) {
+      cpuTemp[i] = GetOneCPUTemp(i);
+    }
+  }
+  else {
+    cpuTemp[cpuNum] = GetOneCPUTemp(cpuNum);
+  }
+
+  return 0;
+}
+
+int GetNode::GetGPUTemp() {
+  std::ifstream fp;
+  fp.open(TEMP_NODE);
+
+  if(fp.fail())
+    return -1;
+
+  char buf[16];
+  for (int i=0; i<5; i++)
+    fp.read(buf, 16);
+  fp.close();
+
+  buf[12] = '\0';
+  
+  gpuTemp = atoi(&buf[9]);
+
+  return 0;
+}
 
 int GetNode::open_sensor(const char *node, sensor_t *sensor) {
   if ((sensor->fd = open(node, O_RDWR)) < 0) {}

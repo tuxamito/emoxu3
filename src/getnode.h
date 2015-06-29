@@ -49,14 +49,18 @@ public:
     float g3duV, g3duA, g3duW;
     float kfcuV, kfcuA, kfcuW;
     float memuV, memuA, memuW;
-    int usage[8] = {0};
+    int usage[8]   = {0};
     int cpuFreq[8] = {0};
-    int gpuFreq = 0;
+    int cpuTemp[4] = {0};
+    int gpuFreq    = 0;
+    int gpuTemp    = 0;
 
     int GetGPUCurFreq(void);
     int GetCPUCurFreq(int cpuNum);
     int GetOneCPUCurFreq(int cpuNum);
+    int GetOneCPUTemp(int cpuNum);
     int GetCPUTemp(int cpuNum);
+    int GetGPUTemp();
     int GetCPUUsage(void);
     int calUsage(int cpu_idx, int user, int nice, int system, int idle);
 
