@@ -11,14 +11,15 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#define VERSION "0.0.7"
-#define DATE "13.11.2015"
+#define VERSION "0.0.8"
+#define DATE "16.03.2016"
 #define DELAY_MS 1000
 #define NAME "emoxu3"
 #define LONGNAME "Energy Monitoring for Odroid-XU3" 
 
 int _executable = 0;
 string _executableCommand = "";
+int _gpuf = 0;
 int _gui = 1;
 int _guicycles = 1;
 int _guicyclescount = 0;
@@ -64,6 +65,7 @@ void printHelp() {
   std::cout << "  --executable, -e \"app [args]\" " << "Execute app with its parameters" << std::endl;
   std::cout << "  --report,     -r              " << "Show an energy report after execution" << std::endl;
   std::cout << "  --report-raw, -R              " << "Show a raw energy report after execution" << std::endl;
+  std::cout << "  --report-gpu, -G              " << "Report GPU frequency" << std::endl;
   std::cout << "  --help,       -h              " << "Show this help" << std::endl;
 }
 
@@ -84,7 +86,8 @@ int getData(GetNode *getNode) {
   res  = getNode->GetCPUUsage();
   res += getNode->GetINA231();
   res += getNode->GetCPUCurFreq(-1);
-  res += getNode->GetGPUCurFreq();
+  if(_gpuf)
+    res += getNode->GetGPUCurFreq();
   res += getNode->GetCPUTemp(-1);
   res += getNode->GetGPUTemp();
 
@@ -120,7 +123,8 @@ void writeDataToLog(GetNode *getNode) {
   _flog << _aTime;
 
   /* GPU Frequency */
-  _flog << _separator << getNode->gpuFreq;
+  if(_gpuf)
+    _flog << _separator << getNode->gpuFreq;
 
   /* CPU Frequency */
   _flog << _separator << getNode->cpuFreq[0];
@@ -190,8 +194,13 @@ void printNLoading() {
 
 void updateDataScreen(GetNode *getNode) {
   clear();
-  printw("GPU : %dMHz %d", getNode->gpuFreq, getNode->gpuTemp);
-  addch(ACS_DEGREE); printw("C\n");
+  if(_gpuf) {
+    printw("GPU : %dMHz %d", getNode->gpuFreq, getNode->gpuTemp);
+    addch(ACS_DEGREE); printw("C\n");
+  } else {
+    printw("GPU : %d", getNode->gpuTemp);
+    addch(ACS_DEGREE); printw("C\n");
+  }
   printw("cpu0: %dMHz, %d\%\n", getNode->cpuFreq[0], getNode->usage[0]);
   printw("cpu1: %dMHz, %d\%\n", getNode->cpuFreq[1], getNode->usage[1]);
   printw("cpu2: %dMHz, %d\%\n", getNode->cpuFreq[2], getNode->usage[2]);
@@ -240,6 +249,10 @@ void parseArguments(int argc, const char* argv[]) {
   if(cmdOptionExists(argv, argv+argc, "-R") || cmdOptionExists(argv, argv+argc, "--report-raw")) {
     _report = 1;
     _reportRaw = 1;
+  }
+
+  if(cmdOptionExists(argv, argv+argc, "-G") || cmdOptionExists(argv, argv+argc, "--report-gpu")) {
+    _gpuf = 1;
   }
 
   const char *_loopms1 = getCmdOption(argv, argv + argc, "-i");
